@@ -46,4 +46,4 @@ npm run dev
 
 - Requires Name, Email, Address, Phone, and Description.
 - Sends quote details to `QUOTE_TO_EMAIL` via Resend.
-- Returns user-friendly success/error status messages in the form UI.
+- Returns user-friendly success/error status messages in the form UI..
