@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 
 const specialisedServices: {
@@ -123,12 +123,28 @@ export default function Home() {
   const [formValues, setFormValues] = useState<FormValues>(initialFormValues);
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Partial<Record<keyof Omit<FormValues, "website">, boolean>>>({});
-  const [status, setStatus] = useState<{ type: "error" | "success"; message: string } | null>(null);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const successDialogRef = useRef<HTMLDialogElement>(null);
   const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    const dialog = successDialogRef.current;
+    if (!dialog) return;
+    const onClose = () => setSuccessDialogOpen(false);
+    dialog.addEventListener("close", onClose);
+    return () => dialog.removeEventListener("close", onClose);
+  }, []);
+
+  useEffect(() => {
+    if (!successDialogOpen) return;
+    const d = successDialogRef.current;
+    if (d && !d.open) d.showModal();
+  }, [successDialogOpen]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setStatus(null);
+    setErrorBanner(null);
 
     const validationErrors = validateForm(formValues);
     const hasErrors = Object.keys(validationErrors).length > 0;
@@ -142,7 +158,7 @@ export default function Home() {
     });
 
     if (hasErrors) {
-      setStatus({ type: "error", message: "Please fix the highlighted fields and try again." });
+      setErrorBanner("Please fix the highlighted fields and try again.");
       return;
     }
 
@@ -166,7 +182,7 @@ export default function Home() {
       const data = (await response.json()) as { ok?: boolean; error?: string };
 
       if (!response.ok || !data.ok) {
-        setStatus({ type: "error", message: data.error || "Could not submit quote request." });
+        setErrorBanner(data.error || "Could not submit quote request.");
         setSending(false);
         return;
       }
@@ -179,12 +195,10 @@ export default function Home() {
       setFormValues(initialFormValues);
       setErrors({});
       setTouched({});
-      setStatus({ type: "success", message: "Thanks. We have received your quote request." });
+      setErrorBanner(null);
+      setSuccessDialogOpen(true);
     } catch {
-      setStatus({
-        type: "error",
-        message: "Network error. Please try again or call us on 0460 967 845.",
-      });
+      setErrorBanner("Network error. Please try again or call us on 0460 967 845.");
     } finally {
       setSending(false);
     }
@@ -195,8 +209,8 @@ export default function Home() {
     if (errors[field as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
-    if (status?.type === "error") {
-      setStatus(null);
+    if (errorBanner) {
+      setErrorBanner(null);
     }
   }
 
@@ -328,9 +342,9 @@ export default function Home() {
               <p className="form-note">
                 No obligation. Just a free quote from a qualified arborist.
               </p>
-              {status ? (
-                <p className={`form-status form-status--${status.type}`} role="status" aria-live="polite">
-                  {status.message}
+              {errorBanner ? (
+                <p className="form-status form-status--error" role="alert">
+                  {errorBanner}
                 </p>
               ) : null}
             </section>
@@ -466,6 +480,29 @@ export default function Home() {
           </div>
         </section>
       </div>
+
+      <dialog
+        ref={successDialogRef}
+        className="quote-success-dialog"
+        aria-labelledby="quote-success-title"
+        aria-describedby="quote-success-body"
+      >
+        <h2 id="quote-success-title" className="quote-success-dialog-title">
+          Thank you for contacting us
+        </h2>
+        <p id="quote-success-body" className="quote-success-dialog-body">
+          We&apos;ve received your quote request and truly appreciate you reaching out to Top Notch Tree
+          Surgeons. Our team will review your details and be in touch as soon as we can; please sit tight while
+          we get back to you.
+        </p>
+        <button
+          type="button"
+          className="quote-success-dialog-btn"
+          onClick={() => successDialogRef.current?.close()}
+        >
+          Got it
+        </button>
+      </dialog>
     </main>
   );
 }
