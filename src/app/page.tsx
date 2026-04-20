@@ -103,6 +103,11 @@ export default function Home() {
       return;
     }
 
+    window.gtag?.("event", "qualify_lead", {
+      currency: "AUD",
+      value: 1,
+    });
+
     form.reset();
     setStatus("Thanks. We have received your quote request.");
     setSending(false);
