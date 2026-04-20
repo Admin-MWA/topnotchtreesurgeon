@@ -69,48 +69,140 @@ const reviewItems: { quote: string; author: string }[] = [
   },
 ];
 
+type FormValues = {
+  name: string;
+  email: string;
+  address: string;
+  phone: string;
+  description: string;
+  website: string;
+};
+
+type FormErrors = Partial<Record<keyof Omit<FormValues, "website">, string>>;
+
+const initialFormValues: FormValues = {
+  name: "",
+  email: "",
+  address: "",
+  phone: "",
+  description: "",
+  website: "",
+};
+
+function validateForm(values: FormValues): FormErrors {
+  const errors: FormErrors = {};
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const phoneDigits = values.phone.replace(/\D/g, "");
+
+  if (!values.name.trim()) {
+    errors.name = "Please enter your name.";
+  }
+  if (!values.email.trim()) {
+    errors.email = "Please enter your email.";
+  } else if (!emailPattern.test(values.email.trim())) {
+    errors.email = "Please enter a valid email address.";
+  }
+  if (!values.address.trim()) {
+    errors.address = "Please enter your address.";
+  }
+  if (!values.phone.trim()) {
+    errors.phone = "Please enter your phone number.";
+  } else if (phoneDigits.length < 8) {
+    errors.phone = "Please enter a valid phone number.";
+  }
+  if (!values.description.trim()) {
+    errors.description = "Please tell us about the required work.";
+  } else if (values.description.trim().length < 10) {
+    errors.description = "Please add a little more detail (at least 10 characters).";
+  }
+
+  return errors;
+}
+
 export default function Home() {
-  const [status, setStatus] = useState<string>("");
+  const [formValues, setFormValues] = useState<FormValues>(initialFormValues);
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Partial<Record<keyof Omit<FormValues, "website">, boolean>>>({});
+  const [status, setStatus] = useState<{ type: "error" | "success"; message: string } | null>(null);
   const [sending, setSending] = useState(false);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setStatus("");
-    setSending(true);
+    setStatus(null);
 
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const payload = {
-      name: String(formData.get("name") || ""),
-      email: String(formData.get("email") || ""),
-      address: String(formData.get("address") || ""),
-      phone: String(formData.get("phone") || ""),
-      description: String(formData.get("description") || ""),
-      website: String(formData.get("website") || ""),
-    };
-
-    const response = await fetch("/api/quote", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+    const validationErrors = validateForm(formValues);
+    const hasErrors = Object.keys(validationErrors).length > 0;
+    setErrors(validationErrors);
+    setTouched({
+      name: true,
+      email: true,
+      address: true,
+      phone: true,
+      description: true,
     });
 
-    const data = (await response.json()) as { ok?: boolean; error?: string };
-
-    if (!response.ok || !data.ok) {
-      setStatus(data.error || "Could not submit quote request.");
-      setSending(false);
+    if (hasErrors) {
+      setStatus({ type: "error", message: "Please fix the highlighted fields and try again." });
       return;
     }
 
-    window.gtag?.("event", "qualify_lead", {
-      currency: "AUD",
-      value: 1,
-    });
+    setSending(true);
+    const payload = {
+      name: formValues.name.trim(),
+      email: formValues.email.trim(),
+      address: formValues.address.trim(),
+      phone: formValues.phone.trim(),
+      description: formValues.description.trim(),
+      website: formValues.website.trim(),
+    };
 
-    form.reset();
-    setStatus("Thanks. We have received your quote request.");
-    setSending(false);
+    try {
+      const response = await fetch("/api/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = (await response.json()) as { ok?: boolean; error?: string };
+
+      if (!response.ok || !data.ok) {
+        setStatus({ type: "error", message: data.error || "Could not submit quote request." });
+        setSending(false);
+        return;
+      }
+
+      window.gtag?.("event", "qualify_lead", {
+        currency: "AUD",
+        value: 1,
+      });
+
+      setFormValues(initialFormValues);
+      setErrors({});
+      setTouched({});
+      setStatus({ type: "success", message: "Thanks. We have received your quote request." });
+    } catch {
+      setStatus({
+        type: "error",
+        message: "Network error. Please try again or call us on 0460 967 845.",
+      });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function handleChange(field: keyof FormValues, value: string) {
+    setFormValues((prev) => ({ ...prev, [field]: value }));
+    if (errors[field as keyof FormErrors]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+    if (status?.type === "error") {
+      setStatus(null);
+    }
+  }
+
+  function handleBlur(field: keyof Omit<FormValues, "website">) {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    setErrors(validateForm(formValues));
   }
 
   return (
@@ -165,16 +257,66 @@ export default function Home() {
               <p className="form-subcopy">
                 Tell us about your job and get a fast, obligation free quote.
               </p>
-              <form onSubmit={onSubmit}>
-                <input name="name" placeholder="Name" required />
-                <input type="email" name="email" placeholder="Email" required />
-                <input name="address" placeholder="Address" required />
-                <input name="phone" placeholder="Phone" required />
+              <form onSubmit={onSubmit} noValidate>
+                <input
+                  name="name"
+                  placeholder="Name"
+                  value={formValues.name}
+                  onChange={(event) => handleChange("name", event.currentTarget.value)}
+                  onBlur={() => handleBlur("name")}
+                  aria-invalid={Boolean(touched.name && errors.name)}
+                  className={touched.name && errors.name ? "field-invalid" : ""}
+                />
+                {touched.name && errors.name ? <p className="form-field-error">{errors.name}</p> : null}
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="Email"
+                  value={formValues.email}
+                  onChange={(event) => handleChange("email", event.currentTarget.value)}
+                  onBlur={() => handleBlur("email")}
+                  aria-invalid={Boolean(touched.email && errors.email)}
+                  className={touched.email && errors.email ? "field-invalid" : ""}
+                />
+                {touched.email && errors.email ? <p className="form-field-error">{errors.email}</p> : null}
+                <input
+                  name="address"
+                  placeholder="Address"
+                  value={formValues.address}
+                  onChange={(event) => handleChange("address", event.currentTarget.value)}
+                  onBlur={() => handleBlur("address")}
+                  aria-invalid={Boolean(touched.address && errors.address)}
+                  className={touched.address && errors.address ? "field-invalid" : ""}
+                />
+                {touched.address && errors.address ? <p className="form-field-error">{errors.address}</p> : null}
+                <input
+                  name="phone"
+                  placeholder="Phone"
+                  value={formValues.phone}
+                  onChange={(event) => handleChange("phone", event.currentTarget.value)}
+                  onBlur={() => handleBlur("phone")}
+                  aria-invalid={Boolean(touched.phone && errors.phone)}
+                  className={touched.phone && errors.phone ? "field-invalid" : ""}
+                />
+                {touched.phone && errors.phone ? <p className="form-field-error">{errors.phone}</p> : null}
                 <label htmlFor="description">Description of works required: *</label>
-                <textarea id="description" name="description" required />
+                <textarea
+                  id="description"
+                  name="description"
+                  value={formValues.description}
+                  onChange={(event) => handleChange("description", event.currentTarget.value)}
+                  onBlur={() => handleBlur("description")}
+                  aria-invalid={Boolean(touched.description && errors.description)}
+                  className={touched.description && errors.description ? "field-invalid" : ""}
+                />
+                {touched.description && errors.description ? (
+                  <p className="form-field-error">{errors.description}</p>
+                ) : null}
                 <input
                   className="hp-field"
                   name="website"
+                  value={formValues.website}
+                  onChange={(event) => handleChange("website", event.currentTarget.value)}
                   autoComplete="off"
                   tabIndex={-1}
                   aria-hidden
@@ -186,7 +328,11 @@ export default function Home() {
               <p className="form-note">
                 No obligation. Just a free quote from a qualified arborist.
               </p>
-              {status && <p className="form-status">{status}</p>}
+              {status ? (
+                <p className={`form-status form-status--${status.type}`} role="status" aria-live="polite">
+                  {status.message}
+                </p>
+              ) : null}
             </section>
           </div>
         </section>

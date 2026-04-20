@@ -195,6 +195,18 @@ textarea {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
+.field-invalid {
+  border-color: #c52323;
+  background: #fff7f7;
+}
+
+.form-field-error {
+  margin: -4px 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #b21717;
+}
+
 input::placeholder,
 textarea::placeholder {
   color: #8a8f8c;
@@ -244,6 +256,14 @@ button:disabled {
 
 .form-status {
   font-weight: 700;
+}
+
+.form-status--success {
+  color: #0b5e38;
+}
+
+.form-status--error {
+  color: #b21717;
 }
 
 /* Section 2: truck / site photo + strong white wash; list block centered, lines left-aligned */
