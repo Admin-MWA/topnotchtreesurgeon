@@ -179,10 +179,12 @@ export default function Home() {
         body: JSON.stringify(payload),
       });
 
-      const data = (await response.json()) as { ok?: boolean; error?: string };
+      const data = (await response.json()) as { ok?: boolean; spam?: boolean; error?: string };
 
       if (!response.ok || !data.ok) {
-        setErrorBanner(data.error || "Could not submit quote request.");
+        if (!data.spam) {
+          setErrorBanner(data.error || "Could not submit quote request.");
+        }
         setSending(false);
         return;
       }

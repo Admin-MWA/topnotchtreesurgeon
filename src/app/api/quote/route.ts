@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     }
 
     if (parsed.data.website.trim()) {
-      return NextResponse.json({ ok: true });
+      return NextResponse.json({ ok: false, spam: true }, { status: 200 });
     }
 
     const toEmail = process.env.QUOTE_TO_EMAIL;

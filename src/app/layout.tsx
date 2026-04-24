@@ -19,6 +19,9 @@ export const metadata: Metadata = {
   description: "Perth tree removal, lopping and pruning quote page.",
 };
 
+const gaId = process.env.NEXT_PUBLIC_GA_ID;
+const shouldLoadGa = process.env.NODE_ENV === "production" && Boolean(gaId);
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -31,18 +34,22 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {children}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-NKF66TBGDZ"
-          strategy="afterInteractive"
-        />
-        <Script id="ga-init" strategy="afterInteractive">
-          {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            gtag('js', new Date());
-            gtag('config', 'G-NKF66TBGDZ');
-          `}
-        </Script>
+        {shouldLoadGa ? (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga-init" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${gaId}');
+              `}
+            </Script>
+          </>
+        ) : null}
       </body>
     </html>
   );
